@@ -2,7 +2,7 @@
   "name": "xuancheng-order-app",
   "version": "1.0.0",
   "private": true,
-  "description": "玄成科技接单系统用户端，提供客户需求提交和附件上传入口。",
+  "description": "玄成科技接单系统用户端，提供客户账号登录、需求提交和附件上传入口。",
   "scripts": {
     "dev": "vite --port 5174",
     "build": "vite build",
@@ -11,7 +11,8 @@
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "element-plus": "^2.7.6",
-    "vue": "^3.4.31"
+    "vue": "^3.4.31",
+    "vue-router": "^4.4.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.0.5",

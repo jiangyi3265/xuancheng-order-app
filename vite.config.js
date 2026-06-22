@@ -16,6 +16,7 @@ export default defineConfig({
     open: false,
     host: true,
     proxy: {
+      '/login': { target: BACKEND, changeOrigin: true },
       '/jiedan': { target: BACKEND, changeOrigin: true }
     }
   },
@@ -23,6 +24,7 @@ export default defineConfig({
     port: 4174,
     host: true,
     proxy: {
+      '/login': { target: BACKEND, changeOrigin: true },
       '/jiedan': { target: BACKEND, changeOrigin: true }
     }
   }
