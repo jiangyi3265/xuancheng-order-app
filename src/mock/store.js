@@ -3,11 +3,18 @@ import { ref } from 'vue'
 export const customerToken = ref(localStorage.getItem('customerToken') || '')
 export const customerName = ref(localStorage.getItem('customerName') || '')
 
-export async function customerLogin(username, password) {
+export async function getCaptcha() {
+  const res = await fetch('/captchaImage')
+  const json = await res.json()
+  if (json.code !== 200) throw new Error(json.msg || 'captcha failed')
+  return json
+}
+
+export async function customerLogin(username, password, captcha = {}) {
   const res = await fetch('/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
+    body: JSON.stringify({ username, password, code: captcha.code || '', uuid: captcha.uuid || '' })
   })
   const json = await res.json()
   if (json.code !== 200) throw new Error(json.msg || '登录失败')
