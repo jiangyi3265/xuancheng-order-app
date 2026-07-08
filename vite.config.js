@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 const BACKEND = 'http://localhost:8080'
 
 export default defineConfig({
+  base: process.env.VITE_BASE || '/',
   plugins: [vue()],
   resolve: {
     alias: {

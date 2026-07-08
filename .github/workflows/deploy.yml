@@ -9,7 +9,9 @@ on:
 env:
   DOMAIN: kejifeipf.top
   SITE_DIR: /www/wwwroot/kejifeipf.top
+  FALLBACK_SITE_DIR: /www/wwwroot/kejiht.feipf.top/client
   ARCHIVE: frontend-dist.tar.gz
+  FALLBACK_ARCHIVE: frontend-client-dist.tar.gz
   REMOTE_TMP: /tmp/xuancheng-frontend-${{ github.run_id }}
 
 jobs:
@@ -35,7 +37,12 @@ jobs:
       - name: Pack dist
         run: tar -czf "$ARCHIVE" -C dist .
 
-      - name: Upload dist archive
+      - name: Build fallback under admin domain
+        run: |
+          VITE_BASE=/client/ npm run build
+          tar -czf "$FALLBACK_ARCHIVE" -C dist .
+
+      - name: Upload primary dist archive
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -46,24 +53,41 @@ jobs:
           target: ${{ env.REMOTE_TMP }}
           overwrite: true
 
+      - name: Upload fallback dist archive
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: ${{ env.FALLBACK_ARCHIVE }}
+          target: ${{ env.REMOTE_TMP }}
+          overwrite: true
+
       - name: Deploy on server
         uses: appleboy/ssh-action@v1.0.3
         env:
           DOMAIN: ${{ env.DOMAIN }}
           SITE_DIR: ${{ env.SITE_DIR }}
+          FALLBACK_SITE_DIR: ${{ env.FALLBACK_SITE_DIR }}
           ARCHIVE: ${{ env.ARCHIVE }}
+          FALLBACK_ARCHIVE: ${{ env.FALLBACK_ARCHIVE }}
           REMOTE_TMP: ${{ env.REMOTE_TMP }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          envs: DOMAIN,SITE_DIR,ARCHIVE,REMOTE_TMP
+          envs: DOMAIN,SITE_DIR,FALLBACK_SITE_DIR,ARCHIVE,FALLBACK_ARCHIVE,REMOTE_TMP
           script: |
             set -e
             mkdir -p "$SITE_DIR"
             find "$SITE_DIR" -mindepth 1 -maxdepth 1 ! -name '.user.ini' -exec rm -rf {} +
             tar -xzf "$REMOTE_TMP/$ARCHIVE" -C "$SITE_DIR"
+
+            mkdir -p "$FALLBACK_SITE_DIR"
+            find "$FALLBACK_SITE_DIR" -mindepth 1 -maxdepth 1 ! -name '.user.ini' -exec rm -rf {} +
+            tar -xzf "$REMOTE_TMP/$FALLBACK_ARCHIVE" -C "$FALLBACK_SITE_DIR"
             rm -rf "$REMOTE_TMP"
 
             NGINX_CONF_DIR=/etc/nginx/conf.d
