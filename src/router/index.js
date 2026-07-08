@@ -7,13 +7,23 @@ const routes = [
     component: () => import('@/views/customer-login/index.vue')
   },
   {
+    path: '/projects',
+    name: 'Projects',
+    component: () => import('@/views/projects/index.vue')
+  },
+  {
+    path: '/projects/:id',
+    name: 'ProjectDetail',
+    component: () => import('@/views/projects/detail.vue')
+  },
+  {
     path: '/intake',
     name: 'Intake',
     component: () => import('@/views/intake/index.vue')
   },
   {
     path: '/',
-    redirect: '/intake'
+    redirect: '/projects'
   }
 ]
 

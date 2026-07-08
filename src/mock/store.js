@@ -31,6 +31,21 @@ export function customerLogout() {
   localStorage.removeItem('customerName')
 }
 
+export async function listMyOrders() {
+  return await customerHttp('/jiedan/portal/orders')
+}
+
+export async function getMyOrder(id) {
+  return await customerHttp('/jiedan/portal/orders/' + id)
+}
+
+export async function sendMessage(orderId, content, attachments = []) {
+  return await customerHttp('/jiedan/portal/message', {
+    method: 'POST',
+    body: JSON.stringify({ orderId, content, attachments })
+  })
+}
+
 export async function customerHttp(url, opts = {}) {
   const { headers: h, ...rest } = opts
   const res = await fetch(url, {

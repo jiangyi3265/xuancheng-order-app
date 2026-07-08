@@ -69,12 +69,17 @@
           <el-icon :size="56" color="#67c23a"><CircleCheckFilled /></el-icon>
           <h2>提交成功</h2>
           <p>我们已收到你的需求，会尽快联系你确认细节。</p>
-          <el-button type="primary" @click="reset">继续提交</el-button>
+          <div class="done-actions">
+            <el-button type="primary" @click="$router.push('/projects')">查看我的项目</el-button>
+            <el-button @click="reset">继续提交</el-button>
+          </div>
         </div>
       </section>
 
       <p class="foot">玄成科技接单系统</p>
     </div>
+
+    <AppTabBar active="intake" />
   </div>
 </template>
 
@@ -84,6 +89,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Histogram, CircleCheckFilled } from '@element-plus/icons-vue'
 import AttachmentUploader from '@/components/AttachmentUploader.vue'
+import AppTabBar from '@/components/AppTabBar.vue'
 import { customerHttp, customerLogout, customerName } from '@/mock/store'
 
 const router = useRouter()
@@ -138,7 +144,12 @@ function doLogout() {
 .intake-page {
   min-height: 100vh;
   background: #f0f2f5;
-  padding: 24px 16px;
+  padding: 24px 16px 80px;
+}
+.done-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 .intake-shell {
   width: 100%;

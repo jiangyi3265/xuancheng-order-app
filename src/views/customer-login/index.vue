@@ -4,8 +4,8 @@
       <div class="brand">
         <el-icon :size="28" color="#409eff"><Histogram /></el-icon>
         <div>
-          <strong>客户需求提交</strong>
-          <span>请输入账号密码后继续</span>
+          <strong>玄成科技 · 客户端</strong>
+          <span>登录后管理项目、与团队沟通</span>
         </div>
       </div>
 
@@ -23,11 +23,11 @@
           </div>
         </el-form-item>
         <el-button type="primary" size="large" class="submit" :loading="loading" @click="doLogin">
-          登录并提交需求
+          登录
         </el-button>
       </el-form>
 
-      <p class="hint">默认客户账号：customer / customer123</p>
+      <p class="hint">演示账号：laowang / hailan / customer，密码均为 customer123</p>
     </section>
   </div>
 </template>
@@ -41,7 +41,7 @@ import { customerLogin, getCaptcha } from '@/mock/store'
 
 const route = useRoute()
 const router = useRouter()
-const username = ref('customer')
+const username = ref('laowang')
 const password = ref('')
 const loading = ref(false)
 const captchaEnabled = ref(false)
@@ -68,7 +68,7 @@ async function doLogin() {
   try {
     await customerLogin(username.value, password.value, { code: captchaCode.value, uuid: captchaUuid.value })
     ElMessage.success('登录成功')
-    router.push(route.query.redirect || '/intake')
+    router.push(route.query.redirect || '/projects')
   } catch (e) {
     ElMessage.error(e.message || '登录失败')
     if (captchaEnabled.value) loadCaptcha()

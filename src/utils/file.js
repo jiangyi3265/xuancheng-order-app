@@ -3,9 +3,11 @@
 export function attType(mime, name = '') {
   if (mime && mime.startsWith('image/')) return 'image'
   if (mime && mime.startsWith('video/')) return 'video'
+  if (mime && mime.startsWith('audio/')) return 'audio'
   const ext = extOf(name)
   if (['mp4', 'mov', 'webm', 'avi', 'm4v', 'mkv'].includes(ext)) return 'video'
   if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'svg'].includes(ext)) return 'image'
+  if (['mp3', 'wav', 'ogg', 'm4a', 'aac', 'amr'].includes(ext)) return 'audio'
   return 'file'
 }
 
