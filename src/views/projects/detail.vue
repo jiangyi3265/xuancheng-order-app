@@ -76,7 +76,6 @@
 
         <div class="chat-title">
           <span>沟通</span>
-          <em>这里是和总裁、副总裁的聊天，内部记录不会显示在这里</em>
         </div>
 
         <div class="chat">
@@ -396,11 +395,6 @@ onBeforeUnmount(() => {
 .chat-title span {
   font-weight: 600;
   color: #303133;
-}
-.chat-title em {
-  font-style: normal;
-  font-size: 12px;
-  color: #a8abb2;
 }
 .chat {
   padding: 4px 2px;
