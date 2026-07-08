@@ -16,6 +16,92 @@
       <div v-if="loading" class="state"><el-icon class="loading"><Loading /></el-icon> 加载中...</div>
 
       <template v-else-if="order">
+        <section class="bug-section" :class="{ 'is-open': bugPanelOpen }">
+          <div class="bug-head">
+            <button type="button" class="bug-summary" @click="toggleBugPanel">
+              <strong>Bug 清单</strong>
+              <span>{{ bugItems.length }} 条</span>
+            </button>
+            <div class="bug-head-actions">
+              <el-button size="small" type="primary" plain :icon="CirclePlus" @click="openBugCreate">
+                快速创建 Bug
+              </el-button>
+              <el-button
+                size="small"
+                text
+                type="primary"
+                :icon="bugPanelOpen ? ArrowUp : ArrowDown"
+                @click="toggleBugPanel"
+              >
+                {{ bugPanelOpen ? '收起' : '展开' }}
+              </el-button>
+            </div>
+          </div>
+
+          <transition name="bug-panel">
+            <div v-if="bugPanelOpen" class="bug-panel thin-scroll">
+              <div v-if="bugCreateOpen" class="bug-form">
+                <el-input
+                  v-model="bugText"
+                  type="textarea"
+                  :rows="3"
+                  resize="none"
+                  placeholder="写 Bug 说明，可以直接粘贴截图"
+                />
+                <AttachmentUploader v-model="bugFiles" :limit="6" class="bug-upload" />
+                <el-button type="primary" :loading="bugSubmitting" @click="submitBug">创建 Bug</el-button>
+              </div>
+
+              <div class="bug-list">
+                <div v-for="bug in bugItems" :key="bug.id" class="bug-item">
+                  <div class="bug-body">
+                    <p>{{ bug.content || '只有附件' }}</p>
+                    <AttachmentView v-if="bug.attachments && bug.attachments.length" :items="bug.attachments" :size="72" />
+                    <div class="bug-meta">{{ bug.createdBy || '客户' }} · {{ bug.time }}</div>
+
+                    <div v-if="bug.updates && bug.updates.length" class="bug-updates">
+                      <div v-for="u in bug.updates" :key="u.id" class="bug-update">
+                        <div class="update-meta">追加 QA · {{ u.createdBy || '客户' }} · {{ u.time }}</div>
+                        <p>{{ u.content || '只有附件' }}</p>
+                        <AttachmentView v-if="u.attachments && u.attachments.length" :items="u.attachments" :size="64" />
+                      </div>
+                    </div>
+
+                    <div v-if="activeUpdateBugId === bug.id" class="bug-update-form">
+                      <el-input
+                        v-model="updateText"
+                        type="textarea"
+                        :rows="2"
+                        resize="none"
+                        placeholder="补充新的 QA / 变更说明，可以粘贴截图"
+                      />
+                      <AttachmentUploader v-model="updateFiles" :limit="6" class="bug-upload" />
+                      <el-button type="primary" :loading="updateSubmittingId === bug.id" @click="submitBugUpdate(bug)">
+                        提交追加
+                      </el-button>
+                    </div>
+                  </div>
+                  <div class="bug-actions">
+                    <el-button text type="primary" :icon="CirclePlus" @click="toggleBugUpdate(bug)">
+                      {{ activeUpdateBugId === bug.id ? '收起' : '追加 QA' }}
+                    </el-button>
+                    <el-button
+                      text
+                      type="danger"
+                      :icon="DeleteIcon"
+                      :loading="deletingBugId === bug.id"
+                      @click="removeBug(bug)"
+                    >
+                      删除
+                    </el-button>
+                  </div>
+                </div>
+                <div v-if="!bugItems.length" class="empty-bugs">暂无 Bug</div>
+              </div>
+            </div>
+          </transition>
+        </section>
+
         <section class="info">
           <div class="info-row"><label>负责团队</label><span>{{ TEAM_NAME }}</span></div>
           <div class="info-row"><label>报价</label><span>¥{{ order.amount || 0 }}</span></div>
@@ -27,77 +113,6 @@
             <div class="mats">
               <MediaThumb v-for="(m, i) in order.attachments" :key="i" :item="m" :size="76" />
             </div>
-          </div>
-        </section>
-
-        <section class="bug-section">
-          <div class="bug-head">
-            <div>
-              <h3>Bug 清单</h3>
-              <span>{{ bugItems.length }} 条</span>
-            </div>
-            <el-button size="small" type="primary" plain :icon="CirclePlus" @click="bugOpen = !bugOpen">
-              {{ bugOpen ? '收起' : '快速创建 Bug' }}
-            </el-button>
-          </div>
-
-          <div v-if="bugOpen" class="bug-form">
-            <el-input
-              v-model="bugText"
-              type="textarea"
-              :rows="3"
-              resize="none"
-              placeholder="写 Bug 说明，可以直接粘贴截图"
-            />
-            <AttachmentUploader v-model="bugFiles" :limit="6" class="bug-upload" />
-            <el-button type="primary" :loading="bugSubmitting" @click="submitBug">创建 Bug</el-button>
-          </div>
-
-          <div class="bug-list">
-            <div v-for="bug in bugItems" :key="bug.id" class="bug-item">
-              <div class="bug-body">
-                <p>{{ bug.content || '只有附件' }}</p>
-                <AttachmentView v-if="bug.attachments && bug.attachments.length" :items="bug.attachments" :size="72" />
-                <div class="bug-meta">{{ bug.createdBy || '客户' }} · {{ bug.time }}</div>
-
-                <div v-if="bug.updates && bug.updates.length" class="bug-updates">
-                  <div v-for="u in bug.updates" :key="u.id" class="bug-update">
-                    <div class="update-meta">追加 QA · {{ u.createdBy || '客户' }} · {{ u.time }}</div>
-                    <p>{{ u.content || '只有附件' }}</p>
-                    <AttachmentView v-if="u.attachments && u.attachments.length" :items="u.attachments" :size="64" />
-                  </div>
-                </div>
-
-                <div v-if="activeUpdateBugId === bug.id" class="bug-update-form">
-                  <el-input
-                    v-model="updateText"
-                    type="textarea"
-                    :rows="2"
-                    resize="none"
-                    placeholder="补充新的 QA / 变更说明，可以粘贴截图"
-                  />
-                  <AttachmentUploader v-model="updateFiles" :limit="6" class="bug-upload" />
-                  <el-button type="primary" :loading="updateSubmittingId === bug.id" @click="submitBugUpdate(bug)">
-                    提交追加
-                  </el-button>
-                </div>
-              </div>
-              <div class="bug-actions">
-                <el-button text type="primary" :icon="CirclePlus" @click="toggleBugUpdate(bug)">
-                  {{ activeUpdateBugId === bug.id ? '收起' : '追加 QA' }}
-                </el-button>
-                <el-button
-                  text
-                  type="danger"
-                  :icon="DeleteIcon"
-                  :loading="deletingBugId === bug.id"
-                  @click="removeBug(bug)"
-                >
-                  删除
-                </el-button>
-              </div>
-            </div>
-            <div v-if="!bugItems.length" class="empty-bugs">暂无 Bug</div>
           </div>
         </section>
 
@@ -127,7 +142,7 @@
 import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Loading, CirclePlus, Delete as DeleteIcon } from '@element-plus/icons-vue'
+import { ArrowLeft, Loading, CirclePlus, Delete as DeleteIcon, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import MediaThumb from '@/components/MediaThumb.vue'
 import AttachmentUploader from '@/components/AttachmentUploader.vue'
 import AttachmentView from '@/components/AttachmentView.vue'
@@ -142,7 +157,8 @@ const id = route.params.id
 const order = ref(null)
 const loading = ref(true)
 const sending = ref(false)
-const bugOpen = ref(false)
+const bugPanelOpen = ref(false)
+const bugCreateOpen = ref(false)
 const bugText = ref('')
 const bugFiles = ref([])
 const bugSubmitting = ref(false)
@@ -158,11 +174,23 @@ let poller = null
 const chatItems = computed(() => (order.value?.timeline || []).filter((t) => t.type === 'message' || t.type === 'reply'))
 const bugItems = computed(() => order.value?.bugs || [])
 
-function scrollBottom(smooth = false) {
+function scrollBottom(smooth = false, retry = 2) {
   nextTick(() => {
     const el = scroller.value
     if (el) el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+    if (retry > 0) {
+      window.requestAnimationFrame(() => scrollBottom(false, retry - 1))
+    }
   })
+}
+
+function toggleBugPanel() {
+  bugPanelOpen.value = !bugPanelOpen.value
+}
+
+function openBugCreate() {
+  bugPanelOpen.value = true
+  bugCreateOpen.value = true
 }
 
 async function load(scroll = true) {
@@ -202,7 +230,8 @@ async function submitBug() {
     order.value = vo
     bugText.value = ''
     bugFiles.value = []
-    bugOpen.value = false
+    bugPanelOpen.value = true
+    bugCreateOpen.value = false
     ElMessage.success('Bug 已创建')
   } catch (e) {
     ElMessage.error(e.message || '创建失败')
@@ -277,7 +306,7 @@ async function removeOrder() {
 }
 
 onMounted(async () => {
-  await load(false)
+  await load(true)
   poller = setInterval(async () => {
     const before = chatItems.value.length
     await load(false)
@@ -379,32 +408,81 @@ onBeforeUnmount(() => {
   gap: 8px;
 }
 .bug-section {
-  background: #fdfefe;
-  border-radius: 8px;
-  padding: 14px;
-  margin-top: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  margin-bottom: 10px;
+}
+.bug-section.is-open {
+  z-index: 50;
 }
 .bug-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  padding: 9px 10px 9px 12px;
+  background: #fdfefe;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(31, 45, 61, 0.06);
 }
-.bug-head h3 {
-  margin: 0;
+.bug-summary {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.bug-summary strong {
   font-size: 16px;
+  font-weight: 700;
   color: #303133;
 }
-.bug-head span {
-  display: block;
-  margin-top: 2px;
+.bug-summary span {
+  flex: 0 0 auto;
   color: #a8abb2;
   font-size: 12px;
 }
+.bug-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 0 0 auto;
+}
+.bug-head-actions :deep(.el-button + .el-button) {
+  margin-left: 0;
+}
+.bug-panel {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 8px);
+  max-height: min(62vh, 520px);
+  overflow-y: auto;
+  padding: 12px;
+  background: #fdfefe;
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  box-shadow: 0 18px 40px rgba(31, 45, 61, 0.18);
+}
+.bug-panel-enter-active,
+.bug-panel-leave-active {
+  transition: opacity 180ms ease, transform 180ms ease;
+}
+.bug-panel-enter-from,
+.bug-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-6px);
+}
 .bug-form {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid #ebeef5;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #ebeef5;
 }
 .bug-upload {
   margin: 10px 0;
@@ -416,7 +494,6 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin-top: 12px;
 }
 .bug-item {
   display: flex;
