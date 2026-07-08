@@ -4,16 +4,12 @@
       <el-icon :size="20"><List /></el-icon>
       <span>我的项目</span>
     </div>
-    <div class="tab" :class="{ active: active === 'intake' }" @click="go('/intake')">
-      <el-icon :size="20"><Plus /></el-icon>
-      <span>提交需求</span>
-    </div>
   </nav>
 </template>
 
 <script setup>
 import { useRouter } from 'vue-router'
-import { List, Plus } from '@element-plus/icons-vue'
+import { List } from '@element-plus/icons-vue'
 
 defineProps({ active: { type: String, default: 'projects' } })
 const router = useRouter()
