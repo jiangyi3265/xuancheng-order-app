@@ -1,7 +1,7 @@
 <template>
   <div class="detail-page">
     <header class="topbar">
-      <el-icon class="back" :size="20" @click="$router.push('/projects')"><ArrowLeft /></el-icon>
+      <el-icon class="back" :size="20" @click="router.push('/projects')"><ArrowLeft /></el-icon>
       <div class="tt">
         <strong>{{ order?.title || '项目详情' }}</strong>
         <span v-if="order">{{ order.orderNo }}</span>
@@ -9,13 +9,13 @@
       <el-tag v-if="order" size="small" :type="statusMap[order.status]?.type">
         {{ statusMap[order.status]?.label || order.status }}
       </el-tag>
+      <el-button v-if="order" text type="danger" @click="removeOrder">删除</el-button>
     </header>
 
     <main ref="scroller" class="scroll">
-      <div v-if="loading" class="state"><el-icon class="loading"><Loading /></el-icon> 加载中…</div>
+      <div v-if="loading" class="state"><el-icon class="loading"><Loading /></el-icon> 加载中...</div>
 
       <template v-else-if="order">
-        <!-- 项目信息卡 -->
         <section class="info">
           <div class="info-row"><label>负责团队</label><span>{{ TEAM_NAME }}</span></div>
           <div class="info-row"><label>报价</label><span>¥{{ order.amount || 0 }}</span></div>
@@ -30,18 +30,20 @@
           </div>
         </section>
 
-        <div class="chat-title"><span>沟通记录</span><em>总裁和副总裁都会同步看到你的消息</em></div>
+        <div class="chat-title">
+          <span>沟通</span>
+          <em>这里是和总裁、副总裁的聊天，内部记录不会显示在这里</em>
+        </div>
 
-        <!-- 聊天消息 -->
         <div class="chat">
           <ChatMessage
-            v-for="(t, i) in order.timeline"
+            v-for="(t, i) in chatItems"
             :key="i"
             :item="t"
             :mine="t.type === 'message'"
           />
-          <div v-if="!order.timeline || !order.timeline.length" class="empty-chat">
-            还没有沟通记录，发条消息和团队聊聊吧 👇
+          <div v-if="!chatItems.length" class="empty-chat">
+            还没有沟通消息，发一条给团队
           </div>
         </div>
       </template>
@@ -52,17 +54,18 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Loading } from '@element-plus/icons-vue'
 import MediaThumb from '@/components/MediaThumb.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
-import { getMyOrder, sendMessage } from '@/mock/store'
+import { getMyOrder, removeMyOrder, sendMessage } from '@/mock/store'
 import { statusMap, priorityMap, TEAM_NAME } from '@/constants/options'
 
 const route = useRoute()
+const router = useRouter()
 const id = route.params.id
 const order = ref(null)
 const loading = ref(true)
@@ -70,6 +73,8 @@ const sending = ref(false)
 const scroller = ref(null)
 const composer = ref(null)
 let poller = null
+
+const chatItems = computed(() => (order.value?.timeline || []).filter((t) => t.type === 'message' || t.type === 'reply'))
 
 function scrollBottom(smooth = false) {
   nextTick(() => {
@@ -104,13 +109,27 @@ async function onSend({ content, attachments }) {
   }
 }
 
+async function removeOrder() {
+  try {
+    await ElMessageBox.confirm('删除后客户和后台都看不到这个问题，确定删除吗？', '删除问题', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    })
+    await removeMyOrder(id)
+    ElMessage.success('已删除')
+    router.push('/projects')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e.message || '删除失败')
+  }
+}
+
 onMounted(async () => {
   await load()
-  // 轮询团队的新回复（12s），保持近实时
   poller = setInterval(async () => {
-    const before = order.value?.timeline?.length || 0
+    const before = chatItems.value.length
     await load(false)
-    const after = order.value?.timeline?.length || 0
+    const after = chatItems.value.length
     if (after > before) scrollBottom(true)
   }, 12000)
 })
@@ -132,7 +151,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: #fff;
+  background: #fdfefe;
   padding: 12px 14px;
   border-bottom: 1px solid #ebeef5;
 }
@@ -175,8 +194,8 @@ onBeforeUnmount(() => {
   }
 }
 .info {
-  background: #fff;
-  border-radius: 10px;
+  background: #fdfefe;
+  border-radius: 8px;
   padding: 14px;
 }
 .info-row {

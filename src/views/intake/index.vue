@@ -5,8 +5,8 @@
         <div class="brand">
           <el-icon :size="26" color="#409eff"><Histogram /></el-icon>
           <div>
-            <strong>玄成科技需求提交</strong>
-            <span>登录后提交项目资料</span>
+            <strong>提交问题</strong>
+            <span>选择模板、补充说明、粘贴图片后提交</span>
           </div>
         </div>
         <div class="account">
@@ -18,23 +18,36 @@
       <section class="intake-card">
         <template v-if="!done">
           <div class="intro">
-            <h1>把需求、资料、联系方式一次说清楚</h1>
-            <p>提交后会自动进入接单系统，我们会在后台分配负责人并跟进。</p>
+            <h1>快速创建一个项目问题</h1>
+            <p>点一个模板会自动填好标题和描述，你可以继续改文字，也可以直接粘贴截图。</p>
+          </div>
+
+          <div class="templates">
+            <button
+              v-for="tpl in templates"
+              :key="tpl.title"
+              type="button"
+              class="template-btn"
+              @click="applyTemplate(tpl)"
+            >
+              <span>{{ tpl.title }}</span>
+              <em>{{ tpl.hint }}</em>
+            </button>
           </div>
 
           <el-form label-position="top" class="form">
-            <el-form-item label="项目 / 需求标题" required>
-              <el-input v-model="form.title" placeholder="例如：餐饮门店点餐小程序" />
+            <el-form-item label="项目 / 问题标题" required>
+              <el-input v-model="form.title" placeholder="例如：菜单图片需要替换" />
             </el-form-item>
-            <el-form-item label="需求描述" required>
+            <el-form-item label="问题说明" required>
               <el-input
                 v-model="form.requirement"
                 type="textarea"
                 :rows="5"
-                placeholder="尽量写清楚想做什么、已有资料、交付时间、参考链接等"
+                placeholder="说清楚要改哪里、改成什么、有没有参考图或截止时间"
               />
             </el-form-item>
-            <el-form-item label="参考图 / 文件">
+            <el-form-item label="截图 / 参考图 / 文件">
               <AttachmentUploader v-model="form.attachments" />
             </el-form-item>
             <el-row :gutter="12">
@@ -60,7 +73,7 @@
             </el-form-item>
 
             <el-button type="primary" size="large" :loading="submitting" class="submit" @click="submit">
-              提交需求
+              创建项目问题
             </el-button>
           </el-form>
         </template>
@@ -68,7 +81,7 @@
         <div v-else class="done">
           <el-icon :size="56" color="#67c23a"><CircleCheckFilled /></el-icon>
           <h2>提交成功</h2>
-          <p>我们已收到你的需求，会尽快联系你确认细节。</p>
+          <p>问题已经进入接单系统，你可以在项目详情里继续和团队沟通。</p>
           <div class="done-actions">
             <el-button type="primary" @click="$router.push('/projects')">查看我的项目</el-button>
             <el-button @click="reset">继续提交</el-button>
@@ -98,10 +111,38 @@ const form = reactive(blank())
 const submitting = ref(false)
 const done = ref(false)
 
+const templates = [
+  {
+    title: '图片替换',
+    hint: '换图、补图、改尺寸',
+    requirement: '需要替换图片：\n1. 当前是哪张图：\n2. 想换成什么：\n3. 是否有参考图或新图片：'
+  },
+  {
+    title: '文字修改',
+    hint: '错字、价格、说明',
+    requirement: '需要修改文字：\n1. 原文字：\n2. 改成：\n3. 出现位置：'
+  },
+  {
+    title: '新增功能',
+    hint: '加按钮、表单、页面',
+    requirement: '需要新增功能：\n1. 谁来使用：\n2. 点哪里进入：\n3. 提交后要看到什么结果：'
+  },
+  {
+    title: '页面问题',
+    hint: '打不开、显示错乱',
+    requirement: '页面出现问题：\n1. 问题页面：\n2. 具体表现：\n3. 手机/电脑型号或浏览器：'
+  }
+]
+
+function applyTemplate(tpl) {
+  form.title = tpl.title
+  form.requirement = tpl.requirement
+}
+
 async function submit() {
-  if (!form.title.trim()) return ElMessage.warning('请填写需求标题')
-  if (!form.requirement.trim()) return ElMessage.warning('请描述一下需求')
-  if (!form.contact.trim()) return ElMessage.warning('请留下联系方式，方便我们联系你')
+  if (!form.title.trim()) return ElMessage.warning('请填写问题标题')
+  if (!form.requirement.trim()) return ElMessage.warning('请描述一下问题')
+  if (!form.contact.trim()) return ElMessage.warning('请留下联系方式，方便我们确认')
   submitting.value = true
   try {
     const payload = {
@@ -145,11 +186,6 @@ function doLogout() {
   min-height: 100vh;
   background: #f0f2f5;
   padding: 24px 16px 80px;
-}
-.done-actions {
-  display: flex;
-  gap: 10px;
-  justify-content: center;
 }
 .intake-shell {
   width: 100%;
@@ -201,9 +237,40 @@ function doLogout() {
   color: #303133;
 }
 .intro p {
-  margin: 8px 0 22px;
+  margin: 8px 0 18px;
   color: #606266;
   font-size: 14px;
+}
+.templates {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 18px;
+}
+.template-btn {
+  border: 1px solid #dcdfe6;
+  border-radius: 8px;
+  background: #fdfefe;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.template-btn:hover {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+.template-btn span {
+  display: block;
+  color: #303133;
+  font-weight: 600;
+  margin-bottom: 3px;
+}
+.template-btn em {
+  display: block;
+  color: #909399;
+  font-size: 12px;
+  font-style: normal;
 }
 .submit {
   width: 100%;
@@ -220,6 +287,11 @@ function doLogout() {
   color: #606266;
   margin: 0 0 20px;
 }
+.done-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
 .foot {
   color: #c0c4cc;
   font-size: 12px;
@@ -233,6 +305,9 @@ function doLogout() {
   }
   .intake-card {
     padding: 22px 18px;
+  }
+  .templates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 </style>

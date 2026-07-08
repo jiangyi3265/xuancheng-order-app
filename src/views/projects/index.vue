@@ -13,7 +13,7 @@
 
     <main class="list">
       <div v-if="loading" class="state">
-        <el-icon class="loading"><Loading /></el-icon> 加载中…
+        <el-icon class="loading"><Loading /></el-icon> 加载中...
       </div>
 
       <el-empty v-else-if="!orders.length" description="还没有项目">
@@ -56,17 +56,21 @@ const router = useRouter()
 const orders = ref([])
 const loading = ref(true)
 
+function chatItems(o) {
+  return (o.timeline || []).filter((t) => t.type === 'message' || t.type === 'reply')
+}
+
 function lastLine(o) {
-  const tl = o.timeline || []
-  if (!tl.length) return o.requirement ? o.requirement.slice(0, 40) : '暂无沟通记录'
+  const tl = chatItems(o)
+  if (!tl.length) return o.requirement ? o.requirement.slice(0, 40) : '暂无沟通'
   const last = tl[tl.length - 1]
   const who = last.type === 'message' ? '我' : last.user
   const body = last.content || (last.attachments && last.attachments.length ? '[附件]' : '')
-  return `${who}：${body}`.slice(0, 46)
+  return `${who}: ${body}`.slice(0, 46)
 }
 
 function msgCount(o) {
-  return (o.timeline || []).filter((t) => t.type === 'message' || t.type === 'note').length
+  return chatItems(o).length
 }
 
 function open(id) {
@@ -105,7 +109,7 @@ onMounted(load)
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
+  background: #fdfefe;
   padding: 12px 16px;
   border-bottom: 1px solid #ebeef5;
 }
@@ -144,8 +148,8 @@ onMounted(load)
   }
 }
 .card {
-  background: #fff;
-  border-radius: 10px;
+  background: #fdfefe;
+  border-radius: 8px;
   padding: 14px;
   margin-bottom: 10px;
   cursor: pointer;

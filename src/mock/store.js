@@ -39,6 +39,10 @@ export async function getMyOrder(id) {
   return await customerHttp('/jiedan/portal/orders/' + id)
 }
 
+export async function removeMyOrder(id) {
+  return await customerHttp('/jiedan/portal/orders/' + id, { method: 'DELETE' })
+}
+
 export async function sendMessage(orderId, content, attachments = []) {
   return await customerHttp('/jiedan/portal/message', {
     method: 'POST',

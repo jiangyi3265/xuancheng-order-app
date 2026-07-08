@@ -1,5 +1,5 @@
 <template>
-  <div class="composer">
+  <div class="composer" @paste="onPaste">
     <!-- 待发送附件预览 -->
     <div v-if="pending.length" class="pending">
       <template v-for="(a, i) in pending" :key="i">
@@ -62,8 +62,7 @@ function fileToDataUrl(file) {
   })
 }
 
-async function onFiles(e) {
-  const files = Array.from(e.target.files || [])
+async function addFiles(files) {
   for (const f of files) {
     if (pending.value.length >= 9) {
       ElMessage.warning('单条消息最多 9 个附件')
@@ -75,7 +74,26 @@ async function onFiles(e) {
     const url = await fileToDataUrl(f)
     pending.value.push({ name: f.name || '附件', url, type: attType(f.type, f.name), size: f.size, ext: extOf(f.name) })
   }
+}
+
+async function onFiles(e) {
+  await addFiles(Array.from(e.target.files || []))
   e.target.value = ''
+}
+
+function onPaste(e) {
+  const items = (e.clipboardData && e.clipboardData.items) || []
+  const images = []
+  for (const item of items) {
+    if (item.kind === 'file' && item.type && item.type.startsWith('image/')) {
+      const file = item.getAsFile()
+      if (file) images.push(file)
+    }
+  }
+  if (images.length) {
+    e.preventDefault()
+    addFiles(images)
+  }
 }
 
 function onRecorded(item) {
