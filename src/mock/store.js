@@ -43,6 +43,17 @@ export async function removeMyOrder(id) {
   return await customerHttp('/jiedan/portal/orders/' + id, { method: 'DELETE' })
 }
 
+export async function createBug(orderId, content, attachments = []) {
+  return await customerHttp('/jiedan/portal/bug', {
+    method: 'POST',
+    body: JSON.stringify({ orderId, content, attachments })
+  })
+}
+
+export async function deleteBug(id) {
+  return await customerHttp('/jiedan/portal/bug/' + id, { method: 'DELETE' })
+}
+
 export async function sendMessage(orderId, content, attachments = []) {
   return await customerHttp('/jiedan/portal/message', {
     method: 'POST',

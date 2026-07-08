@@ -30,6 +30,50 @@
           </div>
         </section>
 
+        <section class="bug-section">
+          <div class="bug-head">
+            <div>
+              <h3>Bug 清单</h3>
+              <span>{{ bugItems.length }} 条</span>
+            </div>
+            <el-button size="small" type="primary" plain :icon="CirclePlus" @click="bugOpen = !bugOpen">
+              {{ bugOpen ? '收起' : '快速创建 Bug' }}
+            </el-button>
+          </div>
+
+          <div v-if="bugOpen" class="bug-form">
+            <el-input
+              v-model="bugText"
+              type="textarea"
+              :rows="3"
+              resize="none"
+              placeholder="写 Bug 说明，可以直接粘贴截图"
+            />
+            <AttachmentUploader v-model="bugFiles" :limit="6" class="bug-upload" />
+            <el-button type="primary" :loading="bugSubmitting" @click="submitBug">创建 Bug</el-button>
+          </div>
+
+          <div class="bug-list">
+            <div v-for="bug in bugItems" :key="bug.id" class="bug-item">
+              <div class="bug-body">
+                <p>{{ bug.content || '只有附件' }}</p>
+                <AttachmentView v-if="bug.attachments && bug.attachments.length" :items="bug.attachments" :size="72" />
+                <div class="bug-meta">{{ bug.createdBy || '客户' }} · {{ bug.time }}</div>
+              </div>
+              <el-button
+                text
+                type="danger"
+                :icon="DeleteIcon"
+                :loading="deletingBugId === bug.id"
+                @click="removeBug(bug)"
+              >
+                删除
+              </el-button>
+            </div>
+            <div v-if="!bugItems.length" class="empty-bugs">暂无 Bug</div>
+          </div>
+        </section>
+
         <div class="chat-title">
           <span>沟通</span>
           <em>这里是和总裁、副总裁的聊天，内部记录不会显示在这里</em>
@@ -57,11 +101,13 @@
 import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Loading } from '@element-plus/icons-vue'
+import { ArrowLeft, Loading, CirclePlus, Delete as DeleteIcon } from '@element-plus/icons-vue'
 import MediaThumb from '@/components/MediaThumb.vue'
+import AttachmentUploader from '@/components/AttachmentUploader.vue'
+import AttachmentView from '@/components/AttachmentView.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
-import { getMyOrder, removeMyOrder, sendMessage } from '@/mock/store'
+import { getMyOrder, removeMyOrder, createBug, deleteBug, sendMessage } from '@/mock/store'
 import { statusMap, priorityMap, TEAM_NAME } from '@/constants/options'
 
 const route = useRoute()
@@ -70,11 +116,17 @@ const id = route.params.id
 const order = ref(null)
 const loading = ref(true)
 const sending = ref(false)
+const bugOpen = ref(false)
+const bugText = ref('')
+const bugFiles = ref([])
+const bugSubmitting = ref(false)
+const deletingBugId = ref(null)
 const scroller = ref(null)
 const composer = ref(null)
 let poller = null
 
 const chatItems = computed(() => (order.value?.timeline || []).filter((t) => t.type === 'message' || t.type === 'reply'))
+const bugItems = computed(() => order.value?.bugs || [])
 
 function scrollBottom(smooth = false) {
   nextTick(() => {
@@ -109,6 +161,44 @@ async function onSend({ content, attachments }) {
   }
 }
 
+async function submitBug() {
+  if (!bugText.value.trim() && !bugFiles.value.length) {
+    ElMessage.warning('先写说明或粘贴截图')
+    return
+  }
+  bugSubmitting.value = true
+  try {
+    const vo = await createBug(id, bugText.value.trim(), [...bugFiles.value])
+    order.value = vo
+    bugText.value = ''
+    bugFiles.value = []
+    bugOpen.value = false
+    ElMessage.success('Bug 已创建')
+  } catch (e) {
+    ElMessage.error(e.message || '创建失败')
+  } finally {
+    bugSubmitting.value = false
+  }
+}
+
+async function removeBug(bug) {
+  try {
+    await ElMessageBox.confirm('删除后双方都看不到这条 Bug，确定删除吗？', '删除 Bug', {
+      type: 'warning',
+      confirmButtonText: '删除',
+      cancelButtonText: '取消'
+    })
+    deletingBugId.value = bug.id
+    const vo = await deleteBug(bug.id)
+    order.value = vo
+    ElMessage.success('Bug 已删除')
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e.message || '删除失败')
+  } finally {
+    deletingBugId.value = null
+  }
+}
+
 async function removeOrder() {
   try {
     await ElMessageBox.confirm('删除后客户和后台都看不到这个问题，确定删除吗？', '删除问题', {
@@ -125,7 +215,7 @@ async function removeOrder() {
 }
 
 onMounted(async () => {
-  await load()
+  await load(false)
   poller = setInterval(async () => {
     const before = chatItems.value.length
     await load(false)
@@ -225,6 +315,77 @@ onBeforeUnmount(() => {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+.bug-section {
+  background: #fdfefe;
+  border-radius: 8px;
+  padding: 14px;
+  margin-top: 12px;
+}
+.bug-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.bug-head h3 {
+  margin: 0;
+  font-size: 16px;
+  color: #303133;
+}
+.bug-head span {
+  display: block;
+  margin-top: 2px;
+  color: #a8abb2;
+  font-size: 12px;
+}
+.bug-form {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebeef5;
+}
+.bug-upload {
+  margin: 10px 0;
+}
+.bug-form .el-button {
+  width: 100%;
+}
+.bug-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 12px;
+}
+.bug-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px;
+  background: #f7f9fc;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+}
+.bug-body {
+  flex: 1;
+  min-width: 0;
+}
+.bug-body p {
+  margin: 0 0 8px;
+  color: #303133;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.bug-meta {
+  margin-top: 8px;
+  color: #a8abb2;
+  font-size: 12px;
+}
+.empty-bugs {
+  text-align: center;
+  color: #a8abb2;
+  font-size: 13px;
+  padding: 18px 0;
 }
 .chat-title {
   display: flex;
