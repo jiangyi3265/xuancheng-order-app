@@ -30,7 +30,7 @@
           </div>
         </section>
 
-        <div class="chat-title"><span>沟通记录</span><em>老板和员工都会同步看到你的消息</em></div>
+        <div class="chat-title"><span>沟通记录</span><em>总裁和副总裁都会同步看到你的消息</em></div>
 
         <!-- 聊天消息 -->
         <div class="chat">
