@@ -54,6 +54,13 @@ export async function deleteBug(id) {
   return await customerHttp('/jiedan/portal/bug/' + id, { method: 'DELETE' })
 }
 
+export async function appendBugUpdate(id, content, attachments = []) {
+  return await customerHttp('/jiedan/portal/bug/' + id + '/update', {
+    method: 'POST',
+    body: JSON.stringify({ content, attachments })
+  })
+}
+
 export async function sendMessage(orderId, content, attachments = []) {
   return await customerHttp('/jiedan/portal/message', {
     method: 'POST',
