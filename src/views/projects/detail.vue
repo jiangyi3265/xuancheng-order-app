@@ -53,7 +53,7 @@
               </div>
 
               <div class="bug-list">
-                <div v-for="bug in bugItems" :key="bug.id" class="bug-item">
+                <div v-for="bug in bugItems" :key="bug.id" class="bug-item" :class="{ 'is-resolved': isBugResolved(bug) }">
                   <div class="bug-body">
                     <p>{{ bug.content || '只有附件' }}</p>
                     <AttachmentView v-if="bug.attachments && bug.attachments.length" :items="bug.attachments" :size="72" />
@@ -82,6 +82,16 @@
                     </div>
                   </div>
                   <div class="bug-actions">
+                    <el-radio-group
+                      :model-value="bugStatus(bug)"
+                      size="small"
+                      class="bug-status"
+                      :disabled="statusUpdatingBugId === bug.id"
+                      @change="(val) => changeBugStatus(bug, val)"
+                    >
+                      <el-radio-button value="open">未解决</el-radio-button>
+                      <el-radio-button value="resolved">已解决</el-radio-button>
+                    </el-radio-group>
                     <el-button text type="primary" :icon="CirclePlus" @click="toggleBugUpdate(bug)">
                       {{ activeUpdateBugId === bug.id ? '收起' : '追加 QA' }}
                     </el-button>
@@ -148,7 +158,7 @@ import AttachmentUploader from '@/components/AttachmentUploader.vue'
 import AttachmentView from '@/components/AttachmentView.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
-import { getMyOrder, removeMyOrder, createBug, deleteBug, appendBugUpdate, sendMessage } from '@/mock/store'
+import { getMyOrder, removeMyOrder, createBug, deleteBug, appendBugUpdate, updateBugStatus, sendMessage } from '@/mock/store'
 import { statusMap, priorityMap, TEAM_NAME } from '@/constants/options'
 
 const route = useRoute()
@@ -163,6 +173,7 @@ const bugText = ref('')
 const bugFiles = ref([])
 const bugSubmitting = ref(false)
 const deletingBugId = ref(null)
+const statusUpdatingBugId = ref(null)
 const activeUpdateBugId = ref(null)
 const updateText = ref('')
 const updateFiles = ref([])
@@ -173,6 +184,14 @@ let poller = null
 
 const chatItems = computed(() => (order.value?.timeline || []).filter((t) => t.type === 'message' || t.type === 'reply'))
 const bugItems = computed(() => order.value?.bugs || [])
+
+function bugStatus(bug) {
+  return bug?.status === 'resolved' ? 'resolved' : 'open'
+}
+
+function isBugResolved(bug) {
+  return bugStatus(bug) === 'resolved'
+}
 
 function scrollBottom(smooth = false, retry = 2) {
   nextTick(() => {
@@ -255,6 +274,20 @@ async function removeBug(bug) {
     if (e !== 'cancel') ElMessage.error(e.message || '删除失败')
   } finally {
     deletingBugId.value = null
+  }
+}
+
+async function changeBugStatus(bug, status) {
+  if (!bug || bugStatus(bug) === status) return
+  statusUpdatingBugId.value = bug.id
+  try {
+    const vo = await updateBugStatus(bug.id, status)
+    order.value = vo
+    ElMessage.success(status === 'resolved' ? '已标记已解决' : '已标记未解决')
+  } catch (e) {
+    ElMessage.error(e.message || '状态更新失败')
+  } finally {
+    statusUpdatingBugId.value = null
   }
 }
 
@@ -504,6 +537,13 @@ onBeforeUnmount(() => {
   border: 1px solid #ebeef5;
   border-radius: 8px;
 }
+.bug-item.is-resolved {
+  background: #f6fbf7;
+  border-color: #c8e6c9;
+}
+.bug-item.is-resolved .bug-body p {
+  color: #606266;
+}
 .bug-body {
   flex: 1;
   min-width: 0;
@@ -526,6 +566,13 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   gap: 4px;
   flex: 0 0 auto;
+}
+.bug-status {
+  margin-bottom: 2px;
+}
+.bug-status :deep(.el-radio-button__inner) {
+  padding: 5px 9px;
+  font-size: 12px;
 }
 .bug-updates {
   display: flex;

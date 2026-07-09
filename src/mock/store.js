@@ -61,6 +61,13 @@ export async function appendBugUpdate(id, content, attachments = []) {
   })
 }
 
+export async function updateBugStatus(id, status) {
+  return await customerHttp('/jiedan/portal/bug/' + id + '/status', {
+    method: 'PUT',
+    body: JSON.stringify({ status })
+  })
+}
+
 export async function sendMessage(orderId, content, attachments = []) {
   return await customerHttp('/jiedan/portal/message', {
     method: 'POST',
