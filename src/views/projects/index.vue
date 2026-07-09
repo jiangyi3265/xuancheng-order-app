@@ -61,6 +61,12 @@ function chatItems(o) {
 }
 
 function lastLine(o) {
+  if (o.lastMessage) {
+    const last = o.lastMessage
+    const who = last.type === 'message' ? '我' : last.user
+    const body = last.content || (last.attachments && last.attachments.length ? '[附件]' : '')
+    return `${who}: ${body}`.slice(0, 46)
+  }
   const tl = chatItems(o)
   if (!tl.length) return o.requirement ? o.requirement.slice(0, 40) : '暂无沟通'
   const last = tl[tl.length - 1]
@@ -70,6 +76,7 @@ function lastLine(o) {
 }
 
 function msgCount(o) {
+  if (o.messageCount !== undefined && o.messageCount !== null) return o.messageCount
   return chatItems(o).length
 }
 
