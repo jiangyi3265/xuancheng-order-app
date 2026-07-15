@@ -1,4 +1,7 @@
 import { ref } from 'vue'
+import { hasPendingUploads } from '@/utils/upload'
+
+const REQUEST_TIMEOUT = 15000
 
 export const customerToken = ref(localStorage.getItem('customerToken') || '')
 export const customerName = ref(localStorage.getItem('customerName') || '')
@@ -39,6 +42,10 @@ export async function getMyOrder(id) {
   return await customerHttp('/jiedan/portal/orders/' + id)
 }
 
+export async function getMyOrderVersion(id) {
+  return await customerHttp('/jiedan/portal/orders/' + id + '/version')
+}
+
 export async function removeMyOrder(id) {
   return await customerHttp('/jiedan/portal/orders/' + id, { method: 'DELETE' })
 }
@@ -76,19 +83,50 @@ export async function sendMessage(orderId, content, attachments = []) {
 }
 
 export async function customerHttp(url, opts = {}) {
-  const { headers: h, ...rest } = opts
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(customerToken.value ? { Authorization: 'Bearer ' + customerToken.value } : {}),
-      ...(h || {})
-    },
-    ...rest
-  })
-  const json = await res.json()
+  const { headers: h, retry = true, ...rest } = opts
+  const method = String(rest.method || 'GET').toUpperCase()
+  if (!['GET', 'HEAD'].includes(method) && hasPendingUploads()) {
+    throw new Error('附件正在上传，请稍候')
+  }
+
+  let json
+  let lastError
+  const attempts = retry && method === 'GET' ? 2 : 1
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(customerToken.value ? { Authorization: 'Bearer ' + customerToken.value } : {}),
+          ...(h || {})
+        },
+        signal: controller.signal,
+        ...rest
+      })
+      json = await res.json().catch(() => null)
+      if (!json) throw new Error(res.ok ? '服务器返回异常' : `服务器暂时不可用（${res.status}）`)
+      if (res.status >= 500 && attempt + 1 < attempts) throw new Error('服务器暂时繁忙')
+      break
+    } catch (e) {
+      json = null
+      lastError = e
+      if (attempt + 1 < attempts) {
+        await new Promise((resolve) => setTimeout(resolve, 450))
+      }
+    } finally {
+      clearTimeout(timeout)
+    }
+  }
+  if (!json) {
+    if (lastError?.name === 'AbortError') throw new Error('加载超时，请检查网络后重试')
+    throw new Error(lastError?.message || '网络连接失败，请稍后重试')
+  }
   if (json.code === 401) {
+    const redirect = encodeURIComponent((location.hash || '#/projects').replace(/^#/, ''))
     customerLogout()
-    if (location.hash !== '#/customer-login') location.hash = '#/customer-login'
+    if (!location.hash.startsWith('#/customer-login')) location.hash = '#/customer-login?redirect=' + redirect
     throw new Error('客户登录已过期，请重新登录')
   }
   if (json.code !== 200) throw new Error(json.msg || '请求失败')

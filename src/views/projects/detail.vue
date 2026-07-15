@@ -9,11 +9,28 @@
       <el-tag v-if="order" size="small" :type="statusMap[order.status]?.type">
         {{ statusMap[order.status]?.label || order.status }}
       </el-tag>
+      <el-button
+        v-if="order && syncState === 'reconnecting'"
+        text
+        type="warning"
+        :icon="Refresh"
+        :loading="syncing"
+        @click="syncNow"
+      >重新连接</el-button>
       <el-button v-if="order" text type="danger" @click="removeOrder">删除</el-button>
     </header>
 
     <main ref="scroller" class="scroll">
       <div v-if="loading" class="state"><el-icon class="loading"><Loading /></el-icon> 加载中...</div>
+
+      <div v-else-if="loadError && !order" class="state error-state">
+        <strong>项目暂时没有打开</strong>
+        <span>{{ loadError }}</span>
+        <div>
+          <el-button :icon="ArrowLeft" @click="router.push('/projects')">返回项目</el-button>
+          <el-button type="primary" :icon="Refresh" @click="load(true)">重新加载</el-button>
+        </div>
+      </div>
 
       <template v-else-if="order">
         <section class="bug-section" :class="{ 'is-open': bugPanelOpen }">
@@ -152,13 +169,13 @@
 import { computed, ref, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { ArrowLeft, Loading, CirclePlus, Delete as DeleteIcon, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
+import { ArrowLeft, Loading, CirclePlus, Delete as DeleteIcon, ArrowDown, ArrowUp, Refresh } from '@element-plus/icons-vue'
 import MediaThumb from '@/components/MediaThumb.vue'
 import AttachmentUploader from '@/components/AttachmentUploader.vue'
 import AttachmentView from '@/components/AttachmentView.vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import MessageComposer from '@/components/MessageComposer.vue'
-import { getMyOrder, removeMyOrder, createBug, deleteBug, appendBugUpdate, updateBugStatus, sendMessage } from '@/mock/store'
+import { getMyOrder, getMyOrderVersion, removeMyOrder, createBug, deleteBug, appendBugUpdate, updateBugStatus, sendMessage } from '@/mock/store'
 import { statusMap, priorityMap, TEAM_NAME } from '@/constants/options'
 
 const route = useRoute()
@@ -166,6 +183,9 @@ const router = useRouter()
 const id = route.params.id
 const order = ref(null)
 const loading = ref(true)
+const loadError = ref('')
+const syncState = ref('online')
+const syncing = ref(false)
 const sending = ref(false)
 const bugPanelOpen = ref(false)
 const bugCreateOpen = ref(false)
@@ -212,15 +232,42 @@ function openBugCreate() {
   bugCreateOpen.value = true
 }
 
-async function load(scroll = true) {
+async function load(scroll = true, silent = false) {
+  if (!silent && !order.value) loading.value = true
   try {
     const vo = await getMyOrder(id)
     order.value = vo
+    loadError.value = ''
+    syncState.value = 'online'
     if (scroll) scrollBottom()
   } catch (e) {
-    ElMessage.error(e.message || '加载失败')
+    if (silent) {
+      syncState.value = 'reconnecting'
+    } else {
+      loadError.value = e.message || '网络连接失败，请稍后重试'
+    }
   } finally {
     loading.value = false
+  }
+}
+
+async function syncNow() {
+  if (!order.value || syncing.value || document.visibilityState !== 'visible') return
+  if (sending.value || bugSubmitting.value || deletingBugId.value || statusUpdatingBugId.value || updateSubmittingId.value) return
+  syncing.value = true
+  try {
+    const version = await getMyOrderVersion(id)
+    if (Number(version?.version || 0) !== Number(order.value.version || 0)) {
+      const before = chatItems.value.length
+      await load(false, true)
+      if (chatItems.value.length > before) scrollBottom(true)
+    } else {
+      syncState.value = 'online'
+    }
+  } catch (e) {
+    syncState.value = 'reconnecting'
+  } finally {
+    syncing.value = false
   }
 }
 
@@ -340,16 +387,15 @@ async function removeOrder() {
 
 onMounted(async () => {
   await load(true)
-  poller = setInterval(async () => {
-    const before = chatItems.value.length
-    await load(false)
-    const after = chatItems.value.length
-    if (after > before) scrollBottom(true)
-  }, 12000)
+  poller = setInterval(syncNow, 2000)
+  window.addEventListener('focus', syncNow)
+  document.addEventListener('visibilitychange', syncNow)
 })
 
 onBeforeUnmount(() => {
   if (poller) clearInterval(poller)
+  window.removeEventListener('focus', syncNow)
+  document.removeEventListener('visibilitychange', syncNow)
 })
 </script>
 
@@ -398,6 +444,22 @@ onBeforeUnmount(() => {
   text-align: center;
   color: #909399;
   padding: 40px 0;
+}
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.error-state strong {
+  color: #303133;
+  font-size: 17px;
+}
+.error-state span {
+  max-width: 32rem;
+  color: #909399;
+  font-size: 13px;
+  line-height: 1.6;
 }
 .loading {
   animation: spin 1s linear infinite;

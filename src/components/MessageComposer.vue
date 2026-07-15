@@ -24,7 +24,7 @@
         placeholder="输入消息，回车发送…"
         @keydown.enter.exact.prevent="doSend"
       />
-      <el-button type="primary" :icon="Promotion" :loading="sending" :disabled="!canSend" @click="doSend">
+      <el-button type="primary" :icon="Promotion" :loading="sending || uploadingCount > 0" :disabled="!canSend" @click="doSend">
         发送
       </el-button>
     </div>
@@ -40,6 +40,7 @@ import { ElMessage } from 'element-plus'
 import MediaThumb from './MediaThumb.vue'
 import VoiceRecorder from './VoiceRecorder.vue'
 import { attType, extOf } from '@/utils/file'
+import { uploadAttachment } from '@/utils/upload'
 
 const props = defineProps({ sending: { type: Boolean, default: false } })
 const emit = defineEmits(['send'])
@@ -47,19 +48,12 @@ const emit = defineEmits(['send'])
 const text = ref('')
 const pending = ref([])
 const fileEl = ref(null)
+const uploadingCount = ref(0)
 
-const canSend = computed(() => !props.sending && (text.value.trim() || pending.value.length))
+const canSend = computed(() => !props.sending && uploadingCount.value === 0 && (text.value.trim() || pending.value.length))
 
 function pickMedia() {
   fileEl.value && fileEl.value.click()
-}
-
-function fileToDataUrl(file) {
-  return new Promise((resolve) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.readAsDataURL(file)
-  })
 }
 
 async function addFiles(files) {
@@ -69,10 +63,18 @@ async function addFiles(files) {
       break
     }
     if (f.size > 50 * 1024 * 1024) {
-      ElMessage.warning(`「${f.name}」超过 50MB，上传和预览可能较慢`)
+      ElMessage.warning(`「${f.name}」不能超过 50MB`)
+      continue
     }
-    const url = await fileToDataUrl(f)
-    pending.value.push({ name: f.name || '附件', url, type: attType(f.type, f.name), size: f.size, ext: extOf(f.name) })
+    uploadingCount.value += 1
+    try {
+      const stored = await uploadAttachment(f)
+      pending.value.push({ ...stored, type: attType(f.type, f.name), ext: extOf(f.name) || stored.ext })
+    } catch (e) {
+      ElMessage.error(e.message || '附件上传失败')
+    } finally {
+      uploadingCount.value -= 1
+    }
   }
 }
 
@@ -96,8 +98,16 @@ function onPaste(e) {
   }
 }
 
-function onRecorded(item) {
-  pending.value.push(item)
+async function onRecorded(item) {
+  uploadingCount.value += 1
+  try {
+    const stored = await uploadAttachment(item.file)
+    pending.value.push({ ...stored, name: item.name, type: 'audio', duration: item.duration })
+  } catch (e) {
+    ElMessage.error(e.message || '语音上传失败')
+  } finally {
+    uploadingCount.value -= 1
+  }
 }
 
 function remove(i) {

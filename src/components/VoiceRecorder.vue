@@ -93,17 +93,15 @@ function onStop() {
   const blob = new Blob(chunks, { type: mediaRecorder.mimeType || 'audio/webm' })
   cleanup()
   if (aborted || duration < 1 || blob.size === 0) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    emit('recorded', {
-      name: `语音 ${elapsedFmt(duration)}`,
-      url: reader.result,
-      type: 'audio',
-      size: blob.size,
-      duration
-    })
-  }
-  reader.readAsDataURL(blob)
+  const ext = blob.type.includes('mp4') ? 'm4a' : blob.type.includes('ogg') ? 'ogg' : 'webm'
+  const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: blob.type })
+  emit('recorded', {
+    name: `语音 ${elapsedFmt(duration)}`,
+    file,
+    type: 'audio',
+    size: blob.size,
+    duration
+  })
 }
 
 function elapsedFmt(s) {

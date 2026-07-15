@@ -16,6 +16,12 @@
         <el-icon class="loading"><Loading /></el-icon> 加载中...
       </div>
 
+      <div v-else-if="loadError && !orders.length" class="state error-state">
+        <strong>项目暂时没有加载出来</strong>
+        <span>{{ loadError }}</span>
+        <el-button type="primary" :icon="Refresh" @click="load(true)">重新加载</el-button>
+      </div>
+
       <el-empty v-else-if="!orders.length" description="还没有项目">
         <el-button type="primary" @click="$router.push('/intake')">提交第一个需求</el-button>
       </el-empty>
@@ -44,10 +50,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Histogram, Loading, ChatDotRound } from '@element-plus/icons-vue'
+import { Histogram, Loading, ChatDotRound, Refresh } from '@element-plus/icons-vue'
 import AppTabBar from '@/components/AppTabBar.vue'
 import { listMyOrders, customerName, customerLogout } from '@/mock/store'
 import { statusMap } from '@/constants/options'
@@ -55,6 +61,8 @@ import { statusMap } from '@/constants/options'
 const router = useRouter()
 const orders = ref([])
 const loading = ref(true)
+const loadError = ref('')
+let poller = null
 
 function chatItems(o) {
   return (o.timeline || []).filter((t) => t.type === 'message' || t.type === 'reply')
@@ -64,7 +72,7 @@ function lastLine(o) {
   if (o.lastMessage) {
     const last = o.lastMessage
     const who = last.type === 'message' ? '我' : last.user
-    const body = last.content || (last.attachments && last.attachments.length ? '[附件]' : '')
+    const body = last.content || (last.hasAttachments || (last.attachments && last.attachments.length) ? '[附件]' : '')
     return `${who}: ${body}`.slice(0, 46)
   }
   const tl = chatItems(o)
@@ -89,18 +97,35 @@ function doLogout() {
   router.push('/customer-login')
 }
 
-async function load() {
-  loading.value = true
+async function load(initial = false) {
+  if (initial || !orders.value.length) loading.value = true
+  loadError.value = ''
   try {
     orders.value = (await listMyOrders()) || []
   } catch (e) {
-    ElMessage.error(e.message || '加载失败')
+    loadError.value = e.message || '网络连接失败，请稍后重试'
+    if (orders.value.length) ElMessage.warning(loadError.value)
   } finally {
     loading.value = false
   }
 }
 
-onMounted(load)
+function refreshWhenVisible() {
+  if (document.visibilityState === 'visible') load(false)
+}
+
+onMounted(() => {
+  load(true)
+  poller = setInterval(refreshWhenVisible, 15000)
+  window.addEventListener('focus', refreshWhenVisible)
+  document.addEventListener('visibilitychange', refreshWhenVisible)
+})
+
+onBeforeUnmount(() => {
+  if (poller) clearInterval(poller)
+  window.removeEventListener('focus', refreshWhenVisible)
+  document.removeEventListener('visibilitychange', refreshWhenVisible)
+})
 </script>
 
 <style scoped>
@@ -145,6 +170,20 @@ onMounted(load)
   text-align: center;
   color: #909399;
   padding: 40px 0;
+}
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.error-state strong {
+  color: #303133;
+  font-size: 16px;
+}
+.error-state span {
+  color: #909399;
+  font-size: 13px;
 }
 .loading {
   animation: spin 1s linear infinite;
