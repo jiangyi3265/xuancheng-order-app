@@ -36,7 +36,7 @@ npm run dev
 
 默认访问地址为 `http://localhost:5174`。开发环境通过 `vite.config.js` 将 `/jiedan`、`/login`、`/captchaImage` 代理到后端服务。
 
-演示账号（密码均为 `customer123`）：`laowang` / `hailan` / `customer`。
+旧演示 SQL 中的账号不用于正式部署。
 
 > 语音录制依赖浏览器 MediaRecorder，需在 `localhost` 或 HTTPS 环境下使用；首次录音会请求麦克风权限。
 
@@ -52,3 +52,14 @@ npm run dev
 ## 简历描述示例
 
 构建客户自助端：账号隔离的项目管理 + 项目内富媒体沟通（图片/视频/浏览器录音语音），客户消息实时同步给老板与员工，复用订单时间线作为双向聊天频道。
+
+## 当前部署（2026-10-29）
+
+- 管理后台：https://jiedanxt.oksja.cn/
+- 客户端：https://jiedanxt.oksja.cn/client/
+- 后端由同域名 `/jiedan/**`、`/login`、`/captchaImage` 代理，服务监听 `127.0.0.1:18091`。
+- AI 改码流水线已移除；订单、客户账号、双向沟通、Bug 跟进和附件功能保留。
+- GitHub Actions 负责构建并保存产物，已移除指向旧域名的自动部署。发布操作见后端 `deploy/production.md`。
+- 正式管理员密码单独交付；客户账号由管理员在「客户账号」中创建。线上没有预置演示客户和演示订单。
+
+部署到当前域名时，使用 `VITE_BASE=/client/ npm run build` 构建。
