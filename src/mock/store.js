@@ -46,8 +46,16 @@ export async function getMyOrderVersion(id) {
   return await customerHttp('/jiedan/portal/orders/' + id + '/version')
 }
 
+// 撤回自己提交的问题：只有还在“待确认”时才允许，团队接手后服务端会拒绝
 export async function removeMyOrder(id) {
   return await customerHttp('/jiedan/portal/orders/' + id, { method: 'DELETE' })
+}
+
+export async function changeMyPassword(oldPassword, newPassword) {
+  return await customerHttp('/jiedan/account/password', {
+    method: 'PUT',
+    body: JSON.stringify({ oldPassword, newPassword })
+  })
 }
 
 export async function createBug(orderId, content, attachments = []) {

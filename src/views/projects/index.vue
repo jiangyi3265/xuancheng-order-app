@@ -7,6 +7,7 @@
       </div>
       <div class="account">
         <span>{{ customerName || '客户' }}</span>
+        <el-button text type="primary" @click="pwdVisible = true">修改密码</el-button>
         <el-button text type="primary" @click="doLogout">退出</el-button>
       </div>
     </header>
@@ -46,6 +47,7 @@
     </main>
 
     <AppTabBar active="projects" />
+    <ChangePasswordDialog v-model:visible="pwdVisible" />
   </div>
 </template>
 
@@ -55,10 +57,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Histogram, Loading, ChatDotRound, Refresh } from '@element-plus/icons-vue'
 import AppTabBar from '@/components/AppTabBar.vue'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 import { listMyOrders, customerName, customerLogout } from '@/mock/store'
 import { statusMap } from '@/constants/options'
 
 const router = useRouter()
+const pwdVisible = ref(false)
 const orders = ref([])
 const loading = ref(true)
 const loadError = ref('')

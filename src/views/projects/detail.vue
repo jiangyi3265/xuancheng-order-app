@@ -17,7 +17,7 @@
         :loading="syncing"
         @click="syncNow"
       >重新连接</el-button>
-      <el-button v-if="order" text type="danger" @click="removeOrder">删除</el-button>
+      <el-button v-if="order && order.status === 'pending'" text type="danger" @click="removeOrder">撤回</el-button>
     </header>
 
     <main ref="scroller" class="scroll">
@@ -372,13 +372,17 @@ async function submitBugUpdate(bug) {
 
 async function removeOrder() {
   try {
-    await ElMessageBox.confirm('删除后客户和后台都看不到这个问题，确定删除吗？', '删除问题', {
-      type: 'warning',
-      confirmButtonText: '删除',
-      cancelButtonText: '取消'
-    })
+    await ElMessageBox.confirm(
+      '撤回后你将看不到这个问题。只有还没开始处理的问题可以撤回；如果是误操作，请联系我们恢复。确定撤回吗？',
+      '撤回问题',
+      {
+        type: 'warning',
+        confirmButtonText: '撤回',
+        cancelButtonText: '取消'
+      }
+    )
     await removeMyOrder(id)
-    ElMessage.success('已删除')
+    ElMessage.success('已撤回')
     router.push('/projects')
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(e.message || '删除失败')
