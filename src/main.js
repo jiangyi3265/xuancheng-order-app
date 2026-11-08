@@ -1,19 +1,5 @@
-import { createApp } from 'vue'
-import ElementPlus from 'element-plus'
-import 'element-plus/dist/index.css'
-import zhCn from 'element-plus/es/locale/lang/zh-cn'
-import * as ElementPlusIconsVue from '@element-plus/icons-vue'
-
-import App from './App.vue'
-import router from './router'
-import './styles/index.scss'
-
-const app = createApp(App)
-
-for (const [key, component] of Object.entries(ElementPlusIconsVue)) {
-  app.component(key, component)
-}
-
-app.use(ElementPlus, { locale: zhCn })
-app.use(router)
-app.mount('#app')
+// The customer application is now part of the unified admin build.
+// Keep published /client/ links and project deep links compatible.
+const hash = window.location.hash
+const knownRoute = /^#\/(projects(?:\/\d+)?|intake|customer-login|customer\/(messages|mine|security))(?:\?.*)?$/.test(hash)
+window.location.replace('/' + (knownRoute ? hash : '#/projects'))
